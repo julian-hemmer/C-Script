@@ -1,1 +1,1 @@
-find "$1" -type f -name "*.c" -exec ./1.sh {} \;
+find "$1" -type f -name "*.c" -exec ./julian_pas_content.sh {} \;
