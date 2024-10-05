@@ -1,0 +1,104 @@
+##################
+# TESTER CREATOR #
+##################
+
+##################
+#     <HELP>     #
+##################
+
+# $1: Is the name of the test folder that's going to be created
+# $x: For every other path to folder to copy inside the test folder
+
+##################
+#    </HELP>     #
+##################
+
+tester_name="$1"
+
+if [ "$tester_name" != "" ]
+    echo "You need to specify a test folder name !"
+    exit
+fi
+
+if [ "$2" != "" ]
+    echo "You need to specify at least one file to copy inside the test folder"
+    exit
+fi
+
+mkdir -p ".tests_dir"
+mkdir -p ".tests_dir/$tester_name"
+
+if [ ! -f .gitignore ]; then
+    echo >.gitignore ".tests_dir"
+fi
+
+
+cd ".tests_dir/$tester_name"
+
+touch main.c
+
+echo >main.c "/*"
+echo >>main.c "** EPITECH PROJECT, 2024"
+echo >>main.c "** $tester_name"
+echo >>main.c "** File description:"
+echo >>main.c "** This is a auto-generated file to test some functionality of a c project"
+echo >>main.c "*/"
+echo >>main.c ""
+echo >>main.c "#include <stdio.h>"
+echo >>main.c ""
+echo >>main.c "int main(void)"
+echo >>main.c "{"
+echo >>main.c "    printf(\"Start of the '$tester_name' test.\n\");"
+echo >>main.c "    "
+echo >>main.c "    printf(\"End of the '$tester_name' test.\n\");"
+echo >>main.c "    return 0;"
+echo >>main.c "}"
+
+current_index=2
+
+while [ "${!current_index}" != "" ]
+do
+    echo "New file to copy found '${!current_index}'."
+    cp "../../${!current_index}" "${!current_index##*/}"
+    ((current_index++))
+done
+
+touch self_destruct
+chmod 700 self_destruct
+
+echo >self_destruct "cd .."
+echo >>self_destruct "sudo rm -rf "$tester_name""
+
+touch coding_style_validator
+chmod 700 coding_style_validator
+
+echo >coding_style_validator mr_clean
+echo >>coding_style_validator "rm -rf '$tester_name.out'"
+echo >>coding_style_validator " "
+echo >>coding_style_validator "coding-style . ."
+echo >>coding_style_validator ""
+echo >>coding_style_validator "echo"
+echo >>coding_style_validator "echo '+------------------------------+'"
+echo >>coding_style_validator "echo '| CODING STYLE CHECKER REPORTS |'"
+echo >>coding_style_validator "echo '+------------------------------+'"
+echo >>coding_style_validator "echo"
+echo >>coding_style_validator "cat coding-style-reports.log"
+echo >>coding_style_validator "echo '+------------------------------+'"
+echo >>coding_style_validator "rm -rf coding-style-reports.log"
+
+touch execute
+chmod 700 execute
+
+echo >>execute "gcc -o '$tester_name.out' *.c"
+echo >>execute ""
+echo >>execute "./'$tester_name.out'"
+echo >>execute "rm -rf '$tester_name.out'"
+
+touch execute_timed
+chmod 700 execute_timed
+
+echo >>execute_timed "gcc -o '$tester_name.out' *.c"
+echo >>execute_timed ""
+echo >>execute_timed "time ./'$tester_name.out'"
+echo >>execute_timed "rm -rf '$tester_name.out'"
+
