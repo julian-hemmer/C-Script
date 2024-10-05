@@ -30,8 +30,8 @@ fi
 mkdir -p ".tests_dir"
 mkdir -p ".tests_dir/$tester_name"
 
-if [ ! -f .gitignore ]; then
-    echo >.gitignore ".tests_dir"
+if [ -f .gitignore ]; then
+    echo >>.gitignore ".tests_dir"
 fi
 
 
@@ -58,10 +58,16 @@ echo >>main.c "}"
 
 current_index=2
 
+touch push_back
+chmod 700 push_back
+echo >push_back
+
 while [ "${!current_index}" != "" ]
 do
     echo "New file to copy found '${!current_index}'."
     cp "../../${!current_index}" "${!current_index##*/}"
+    echo >>push_back "rm -rf '../../${!current_index}'"
+    echo >>push_back "cp -r '${!current_index##*/}' '../../${!current_index}'"
     ((current_index++))
 done
 
@@ -91,7 +97,7 @@ echo >>coding_style_validator "rm -rf coding-style-reports.log"
 touch execute
 chmod 700 execute
 
-echo >>execute "gcc -o '$tester_name.out' *.c"
+echo >execute "gcc -o '$tester_name.out' *.c"
 echo >>execute ""
 echo >>execute "./'$tester_name.out'"
 echo >>execute "rm -rf '$tester_name.out'"
@@ -99,7 +105,7 @@ echo >>execute "rm -rf '$tester_name.out'"
 touch execute_timed
 chmod 700 execute_timed
 
-echo >>execute_timed "gcc -o '$tester_name.out' *.c"
+echo >execute_timed "gcc -o '$tester_name.out' *.c"
 echo >>execute_timed ""
 echo >>execute_timed "time ./'$tester_name.out'"
 echo >>execute_timed "rm -rf '$tester_name.out'"
