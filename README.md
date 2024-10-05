@@ -1,5 +1,5 @@
 # C-Script
 
-/- mr_clean -\\ <p>
-| Delete file that follow the next regex "#\*#" or "\*~" <p>
-\\------------/ <p>
+/- mr_clean -\\ <br/>
+| Delete file that follow the next regex "#\*#" or "\*~" <br/>
+\\------------/ <br/>
