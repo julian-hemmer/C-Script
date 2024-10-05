@@ -15,12 +15,14 @@
 
 tester_name="$1"
 
-if [ "$tester_name" != "" ]
+if [ "$tester_name" == "" ]
+then
     echo "You need to specify a test folder name !"
     exit
 fi
 
-if [ "$2" != "" ]
+if [ "$2" == "" ]
+then
     echo "You need to specify at least one file to copy inside the test folder"
     exit
 fi
