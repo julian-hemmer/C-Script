@@ -1,0 +1,395 @@
+#!/usr/bin/python3
+
+import argparse
+import sys
+import subprocess
+import os
+import math
+import threading
+import time
+import random
+
+parser = None
+args   = None
+
+error_report = {}
+excluded_error = []
+
+light_gray = 242
+gray       = 244
+dark_gray  = 248
+gold       = 3
+red        = 197
+green      = 28
+orange     = 214
+
+##
+# error_type: [INFO, MAJOR, MINOR, ...]
+# error: [A3, O1, ...]
+# line: "The line of the error"
+# file: "The file path"
+##
+
+error_format = None
+
+def c(text, code = 0, modifier = 0):
+    if code == 0:
+        return text
+    return f"\033[38;5;{code}{f";{modifier}" if modifier != 0 else ""}m{text}\033[0m"
+
+type_color = {
+    "total": f"{c("%s", code = 25)}",
+    "fatal": f"{c("%s", code = 239)}",
+    "major": f"{c("%s", code = 196)}",
+    "minor": f"{c("%s", code = 208)}",
+    "info": f"{c("%s", code = 76)}"
+}
+
+error_help = {
+    "O1":  f"{c('Repo must not contain', dark_gray)} {c('compiled', dark_gray, 1)} {c('source code.', dark_gray)}",
+    "O3":  f"{c('Ensure the file contains', dark_gray)} {c('10 functions: 5 static and 5 non-static.', dark_gray, 1)}",
+    "O4":  f"{c('Ensure that', dark_gray)} {c('files and folders are named', dark_gray, 1)}{c('logically and consistently.', dark_gray)}",
+
+    "G1":  f"{c('Header', dark_gray, 1)} {c('is missing.', dark_gray)}",
+    "G2":  f"{c('Functions should be separated by', dark_gray)} {c('exactly one empty line.', dark_gray, 1)}",
+    "G3":  f"{c('Preprocessor directives must be properly indented.', dark_gray)}",
+    "G4":  f"{c('Global variables', dark_gray, 1)} {c('should be declared', dark_gray)} {c('at the top.', dark_gray, 1)}",
+    "G5":  f"{c('Only include', dark_gray)} {c('.h', dark_gray, 1)} {c('files.', dark_gray)}",
+    "G6":  f"{c('Lines of code should', dark_gray)} {c('never end with a backslash.', dark_gray, 1)}",
+    "G7":  f"{c('There is', dark_gray)} {c('space(s)', dark_gray, 1)} {c('at the end of the line.', dark_gray)}",
+    "G8":  f"{c('Avoid leading empty lines and ensure no more than one trailing empty line.', dark_gray)}",
+    "G9":  f"{c('Constant values should be defined using appropriate constants.', dark_gray)}",
+    "G10": f"{c('Ensure inline assembly code is used properly.', dark_gray)}",
+
+    "F1":  f"{c('Functions should maintain logical coherence.', dark_gray)}",
+    "F2":  f"{c('Function names must be descriptive and concise.', dark_gray)}",
+    "F3":  f"{c('The line is too long', dark_gray)} {c('(80 characters', dark_gray, 1)} {c('maximum).', dark_gray)}",
+    "F4":  f"{c('The function is too long', dark_gray)} {c('(20 lines', dark_gray, 1)} {c('of code maximum).', dark_gray)}",
+    "F5":  f"{c('The function have too much parameters', dark_gray)} {c('(4 parameters', dark_gray, 1)} {c('maximum).', dark_gray)}",
+    "F6":  f"{c('Functions without parameters should be used where appropriate.', dark_gray)}",
+    "F7":  f"{c('Structures can be passed as parameters to functions.', dark_gray)}",
+    "F8":  f"{c('Ensure comments inside functions are present and useful.', dark_gray)}",
+    "F9":  f"{c('Avoid nested functions.', dark_gray)}",
+
+    "L1":  f"{c('Each line of code within a function should be concise.', dark_gray)}",
+    "L2":  f"{c('Indentation', dark_gray, 1)} {c('in the line is wrong.', dark_gray)}",
+    "L3":  f"{c('Spaces should be used appropriately.', dark_gray)}",
+    "L4":  f"{c('Curly brackets', dark_gray, 1)} {c('should be placed correctly.', dark_gray)}",
+    "L5":  f"{c('Variable declarations should be clear and placed at the beginning.', dark_gray)}",
+    "L6":  f"{c('Blank lines should be used to separate logical blocks of code.', dark_gray)}",
+
+    "V1":  f"{c('Naming identifiers', dark_gray)}",
+    "V3":  f"{c('Wrong placement of', dark_gray)} {c('pointer(s)', dark_gray, 1)}",
+
+    "C1":  f"{c('Nested conditional branches', dark_gray, 1)} {c('with a depth of 3 or more must be avoided.', dark_gray)}",
+    "C3":  f"{c('Usage of', dark_gray)} {c('goto', dark_gray, 1)} {c('is forbidden', dark_gray)}",
+
+    "H1":  f"{c('Header mut only contain:', dark_gray)} {c('function;', dark_gray, 1)} {c('type;', dark_gray, 1)} {c('struct;', dark_gray)} {c('enum;', dark_gray, 1)} {c('global var;', dark_gray, 1)} {c('macros', dark_gray, 1)}",
+
+    "A3":  f"{c('File must end with a', dark_gray)} {c('line break', dark_gray, 1)}{c('.', dark_gray)}"
+
+}
+
+def count_error(type, with_excluded=True):
+    global excluded_error
+
+    counter = 0
+    
+    if type == "total":
+        for type in error_report["type"]:
+            counter += count_error(type, with_excluded)
+        return counter
+    
+    if with_excluded:
+        for error in error_report["type_total"][type]:
+            counter += 1
+    else:
+        for error in error_report["type"][type]:
+            counter += 1
+
+    return counter
+
+def parse_args():
+    global parser, args, excluded_error, error_format
+
+    parser = argparse.ArgumentParser(description = "| Coding style Report |")
+
+    parser.add_argument("--delivery", 
+                        help = "The delivery to analyse (Default: '.')", 
+                        default = ".")
+    
+    parser.add_argument("--exclude", 
+                        help = "The error to exclude (Separate error with ',' if you want to exclude multiple one) (Default: '')", 
+                        default = "")
+    
+    parser.add_argument("--format", 
+                        help = "The format (Availble placeholder: error_type, error, line, file) (Default: '$error $file ($line)')", 
+                        default = "$error | $file ( $line )")
+    
+    args = parser.parse_args(sys.argv[1:])
+
+    excluded_error = args.exclude.split(",")
+    error_format = args.format
+
+start_time = time.time()
+
+def timer_function():
+    global start_time
+
+    to_print = ""
+    last_upate = 0
+    delay = random.random() / 10
+
+    while start_time > 0:
+        if time.time() - last_upate < delay:
+            continue
+
+        last_upate = time.time()
+        timestamp = float(last_upate - start_time)
+        delay = random.random() / 10
+
+        print(f"\r{" " * len(to_print)}", end = "")
+
+        to_print = ""
+        if int(timestamp) > 0:
+            to_print += f"{c(f"{int(timestamp)}", code=gold)}"
+            to_print += f"{c("s", code=gray)} "
+        to_print += f"{c(f"{round((timestamp - int(timestamp)) * 1000)}", code=gold)}"
+        to_print += f"{c("ms", code=gray)}"
+
+        print(f"\r{to_print}", end = "")
+
+    print(f"\r{" " * len(to_print)}\r", end = "")
+    print(f"\r{c("Took:", gray)} {to_print}")
+
+def execute_coding_style():
+    global args, start_time
+
+    delivery_path = args.delivery
+    print(f"{c(f"Executing coding style at '{delivery_path}'.", code = gray)}")
+    timer_thread = threading.Thread(target = timer_function, daemon=False)
+    timer_thread.start()
+    subprocess.run(["coding-style", delivery_path, "."], stdout=subprocess.DEVNULL)
+    start_time = -1
+    timer_thread.join()
+
+def clean():
+    os.remove("coding-style-reports.log")
+
+def increment_dict(dict, value):
+    dict[value] = dict.get(value, 0) + 1
+
+def process_result():
+    global error_report, excluded_error
+
+    error_report["type"] = {}
+    error_report["stat"] = {}  
+    error_report["stat"]["type"] = {}  
+
+    error_report["stat_total"] = {}  
+    error_report["type_total"] = {}
+    error_report["stat_total"]["type"] = {}  
+    
+    with open("coding-style-reports.log", "r") as file:
+        for line in file:
+            line = line.replace("\n", "")
+            data = line.split(":")
+
+            file_path = data[0]
+            line_position = data[-3]
+            error_type = data[-2][1:]
+            error = data[-1][2:]
+            
+            increment_dict(error_report["stat_total"], "total")
+            increment_dict(error_report["stat_total"], error_type)
+            increment_dict(error_report["stat_total"]["type"], error)
+            
+            if error_report["type"].get(error_type, None) == None:
+                if error not in excluded_error:
+                    error_report["type"][error_type] = []
+
+            if error_report["type_total"].get(error_type, None) == None:
+                error_report["type_total"][error_type] = []
+
+            new_report = {
+                "file_path": file_path,
+                "line_position": line_position,
+                "error_type": error_type,
+                "error": error
+            }
+            if error not in excluded_error:
+                error_report["type"][error_type].append(new_report)
+                increment_dict(error_report["stat"], "total")
+                increment_dict(error_report["stat"], error_type)
+                increment_dict(error_report["stat"]["type"], error)
+            error_report["type_total"][error_type].append(new_report)
+    return
+
+def format_string(str, targetlen, alignment = "LEFT"):
+    if (targetlen <= len(str)):
+        return str
+    if alignment == "LEFT":
+        return str + (' ' * (targetlen - len(str)))
+    elif alignment == "RIGHT":
+        return (' ' * (targetlen - len(str))) + str
+    elif alignment == "CENTERED":
+        return (' ' * math.ceil((targetlen - len(str)) / 2)) + str + (' ' * math.floor((targetlen - len(str)) / 2))
+    return str
+
+def parse_type_color(type, str):
+    global type_color
+    
+    return type_color.get(type.strip().lower(), "%s").replace("%s", str)
+
+def make_bar(percent, length = 10, 
+             active_str = c("|", code = gray, modifier = 1),
+              empty_str = c("|", code = gray, modifier = 0)):
+    final_bar = ""
+    final_bar += (math.ceil(percent * length) * active_str)
+    final_bar += (math.floor((1 - percent) * length) * empty_str)
+    return final_bar
+
+
+def print_header():
+    global error_report
+
+    longest_type = 0
+    largest_amount = 0
+    largest_total_amount = 0
+    largest_total_percent = 0
+    index = 0
+    total = 0
+
+    for type in error_report["type"]:
+        largest_amount = max(count_error(type), largest_amount)
+
+    for type in error_report["type_total"]:
+        largest_total_amount = max(count_error(type), largest_total_amount)
+
+    for type in error_report["type_total"]:
+        largest_total_percent = max(len(f"{round(count_error(type, True) / float(error_report["stat_total"]["total"]) * 100, 2):0.2f}"), largest_total_percent)
+
+    print(f"{c("+----->", code = gold)}")
+
+    for type in error_report["stat"]:
+        if type == "type":
+            continue
+        longest_type = max(longest_type, len(type))
+    for type in error_report["stat"]:
+        total += 1
+        if type == "type":
+            continue
+
+        print(f"{c("|", code = gold)} ", end = "")
+
+        if (index == 0 and type != "total") or total == len(error_report["stat"]):
+            print(f"{c("+ ", code = gold)}", end = "")
+        elif type != "total":
+            print(f"{c("| ", code = gold)}", end = "")
+        if type != "total":
+            index += 1
+        
+        print(f"{c(f"{parse_type_color(type, format_string(type.capitalize(), longest_type))}", code = gray)}"
+            f"{c(" :", code = gray)} {c(f"{format_string(str(count_error(type, False)), len(str(largest_amount)))}", code = gold)}", end="")
+        if type != "total":
+            print(f" {c(f"[", code = orange)}{make_bar(count_error(type, False) / error_report["stat"]["total"], active_str=c("|", code = green, modifier = 1), empty_str=c("|", code = red, modifier = 1))}{c(f"]", code = orange)}", end = "")
+
+            print(f" {c(f"(", code = light_gray)}{c(f"{format_string(str(count_error(type, True)), len(str(largest_total_amount)), alignment="RIGHT")}", code = gray)}{c(f" | ", code = light_gray)}" 
+                f"{c(f"[", code = light_gray)}{make_bar(count_error(type, True) / error_report["stat_total"]["total"])}{c(f"]", code = light_gray)}{c(f")", code = light_gray)}", end="")
+        print("")
+
+    print(f"{c("+----->", code = gold)}")
+
+def print_details():
+    global error_report, error_format
+
+    longest_type = 0
+    longest_path = 0
+    longest_line = 0
+    longest_error_code = 0
+    for type in error_report["type"]:
+        longest_type = max(longest_type, len(type))
+        for error in error_report["type"][type]:
+            longest_path = max(longest_path, len(error["file_path"]))
+            longest_line = max(longest_line, len(error["line_position"]))
+            longest_error_code = max(longest_error_code, len(error["error"]))
+
+    index = 0
+    for type in error_report["type_total"]:
+        index += 1
+        print(f"{c("| ", code = gold)}", end = "")
+
+        print(f"{c(f"+-- ", code = gold)}", end = "")
+        print(f"{c(f"{parse_type_color(type, format_string(type, longest_type))}", code = gold)}", end = "")
+        print(f"{c(f" --->", code = gold)}")
+
+        for error in error_report["type"][type]:
+            print(f"{c("| | ", code = gold)}", end = "")
+
+            current_str = error_format
+            
+            current_str = current_str.replace("$error", parse_type_color(type, format_string(error["error"], longest_error_code)))
+            current_str = current_str.replace("$error_type", parse_type_color(type, type.capitalize()))
+            current_str = current_str.replace("$line", parse_type_color(type, format_string(error["line_position"], longest_line, alignment="CENTERED")))
+            current_str = current_str.replace("$file", parse_type_color(type, format_string(error["file_path"], longest_path)))
+            
+            print(current_str)
+            
+        if index != len(error_report["type"]):
+            print(f"{c("| |", code = gold)}")
+
+    print(f"{c("| +", code = gold)}")
+
+    print(f"{c("+----->", code = gold)}")
+
+def print_help_resolver():
+    global error_report, error_help
+    
+    error_help_printed = []
+    max_error_len = 0
+
+    for type in error_report["type"]:
+        for error in error_report["type"][type]:
+            max_error_len = max(max_error_len, len(error["error"]))
+
+    for type in error_report["type"]:
+        for error in error_report["type"][type]:
+            if error["error"] in error_help_printed:
+                continue
+
+            print(f"{c("| ", code = gold)}", end = "")
+            print(f"{parse_type_color(type, format_string(error["error"], max_error_len))} ", end = "")
+            print(f"{c(": ", code = gold)}", end = "")
+            print(f"{c(error_help.get(error["error"], "Not help message was found."), code = gray)}")
+            error_help_printed.append(error["error"])
+    print(f"{c("+----->", code = gold)}")
+
+def print_result():
+    global error_report
+
+    if error_report["stat"].get("total", None) == None:
+        print(c("No error was found !", code = gray))
+    else:
+        print_header()
+        print_details()
+        print_help_resolver()
+
+def print_config():
+    global args
+
+
+    print(f"{c("+----->", code = gold)}")
+    print(f"{c("|", code = gold)} {c("Delivery file :", code = gray)} {c(args.delivery, code = gold)}")
+    print(f"{c("|", code = gold)} {c("Excluded error:", code = gray)} {c(excluded_error, code = gold)}")
+    print(f"{c("+----->", code = gold)}")
+
+def main():
+    parse_args()
+    print_config()
+    execute_coding_style()
+    process_result()
+    print_result()
+    clean()
+
+if __name__ == "__main__":
+    main()
