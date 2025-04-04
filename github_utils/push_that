@@ -1,0 +1,69 @@
+#!/usr/bin/python3
+
+import argparse
+import sys
+import subprocess
+
+MESSAGE = {
+    "NO_CHANGE_DETECTED": "No file to push !",
+    "CHANGE_DETECTED": "Some change on the local repository was found !{} {} {}"
+}
+
+def print_message(key, **kwargs):
+    str = MESSAGE[key]
+    if str == None or str == "":
+        return
+    print(str.format(**kwargs))
+
+def debug_print(str, debug_mode = None):
+    if debug_mode == None:
+        print("Debug_mode wasn't give !", file=sys.stderr)
+        return
+    if not debug_mode:
+        return    
+    print(f"{str}")
+
+def parse_args(raw_argument):
+    parser = argparse.ArgumentParser(description = 
+        "The push that file. Used to push github file with style, and some utils soon (I hope) !")
+    parser.add_argument("--dir",
+                        help = "The directory to push (Default: '.')", 
+                        default = ".")
+    parser.add_argument("--exclude",
+                        help = "The file too exclude. (Separate error with ',' if you want to exclude multiple one) (Default: '')", 
+                        default = "")
+    parser.add_argument("--debug",
+                        help = "Use to activate debug mode (It's doesnt execute any command).", 
+                        action = "store_true")
+    return parser.parse_args(raw_argument)
+
+def any_file_to_push():
+    command_result = subprocess.run(["git", "diff", "--exit-code"], stdout=subprocess.DEVNULL)
+    if command_result.returncode != 0:
+        return True
+    command_result = subprocess.check_output(["git", "ls-files", "--other", "--exclude-standard", "--directory"])
+    if command_result != b'':
+        return True
+    return False
+
+def add_file(args):
+    command = ["git", "add", args.dir]
+    debug_print(f"Given dir: {args.dir}", args.debug)
+    if not args.debug:
+        subprocess.run(args=command, stdout=subprocess.DEVNULL) 
+
+def push_file(args):
+    pass
+
+def main():
+    args = parse_args(sys.argv[1:])
+    if not any_file_to_push():
+        print_message(MESSAGE["NO_CHANGE_DETECTED"])
+        return 0
+    print_message("CHANGE_DETECTED", "a", "eeee", 12)
+    add_file(args)
+    push_file(args)
+    return 0
+
+if __name__ == '__main__':
+    exit(main())
