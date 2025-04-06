@@ -12,7 +12,7 @@ MESSAGE = {
     "NO_CHANGE_DETECTED": "No file to push !",
     "CHANGE_DETECTED": "Some change on the local repository was found !",
     "ASK_COMMIT_MESSAGE": "Give a meaningful message for the commit: ",
-    "INVALID_COMMIT_MESSAGE": "The message '{}' is invalid !",
+    "INVALID_COMMIT_VARIABLE_VALUE": "The value '{}' is invalid !",
     "DEFAULT_COMMIT_SUCCEED": "Commit succeed !",
     "ASK_COMMIT_RULES": "Give a commit rules: ",
     "INVALID_COMMIT_RULE": "Invalid commit rule given ! ('{}')",
@@ -20,16 +20,23 @@ MESSAGE = {
 }
 
 COMMIT_RULES = {
-    "FIX": {
-        "message": "[FIX] - {message}.",
-        "ask_message": "Please give message: ",
-        "success": "Success on committing with FIX rules."
-    }, "CHANGE": {
-        "message": "[CHANGE] - {message}.",
-        "ask_message": "Please give message: "
-    }, "ADD": {
-        "message": "[ADD] - {message}.",
-        "ask_message": "Please give message: "
+    "REMOVE": {
+        "description": "[REMOVE] -> Used to ",
+        "message": "[🔥] - {message}.",
+        "ask_message": "Explain what was removed: ",
+        "success": "Boom nothings here now !"
+    }, "DOC": {
+        "message": "[📝] - {message}.",
+        "ask_message": "Explain which docs did you add: ",
+        "success": "Nice i like when somebody add documentation !"
+    }, "NEW": {
+        "message": "[✨] - {message}.",
+        "ask_message": "Explain what's new here: ",
+        "success": "Wooow new feature already ?"
+    }, "BUG": {
+        "message": "[🐛] - {message}.",
+        "ask_message": "Which bug did you fix: ",
+        "success": "Why did you put bug here in the first place ?"
     }
 }
 
@@ -56,9 +63,6 @@ def parse_args(raw_argument):
     parser.add_argument("--dir",
                         help = "The directory to push (Default: '.')", 
                         default = ".")
-    parser.add_argument("--exclude",
-                        help = "The file too exclude. (Separate error with ',' if you want to exclude multiple one) (Default: '')", 
-                        default = "")
     parser.add_argument("--debug",
                         help = "Use to activate debug mode (It's doesnt execute any command).", 
                         action = "store_true")
@@ -103,6 +107,8 @@ def ask_for_commit_rule():
     rule = input(MESSAGE["ASK_COMMIT_RULES"]).strip()
     match = next((k for k in COMMIT_RULES if k.lower() == rule.lower()), rule)
     readline.set_completer(None)
+    if match in COMMIT_RULES and "description" in COMMIT_RULES[match]:
+        print(COMMIT_RULES[match]["description"])
     return match
 
 ####
@@ -126,6 +132,9 @@ def ask_for_commit_variable(rules):
             CHOICES = rules[f"choices_{field}"]
         user_input = input(message)
         readline.set_completer(None)
+        if user_input.strip() == "":
+            print_message("INVALID_COMMIT_VARIABLE_VALUE", user_input)
+            return None
         values[field] = user_input
     return values
 
