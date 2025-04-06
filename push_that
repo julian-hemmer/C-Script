@@ -70,7 +70,7 @@ def completer(text, state):
         return options[state]
     else:
         return None
-
+    
 def ask_for_commit_rule():
     global CHOICES
     readline.set_completer(completer)
