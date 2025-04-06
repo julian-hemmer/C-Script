@@ -7,6 +7,7 @@ from pathlib import Path
 import readline
 import re
 from push_utils.config import *
+from push_utils.color import *
 
 def print_message(key, *args, file = sys.stdout):
     str = MESSAGE[key]

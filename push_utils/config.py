@@ -17,27 +17,27 @@ MESSAGE = {
 COMMIT_RULES = {
     "REMOVE": {
         "description": "Used when removing somethings from the project.",
-        "message": "[🔥] - {message}.",
+        "message": "[🔥] - {message}",
         "ask_message": "Explain what was removed: ",
         "success": "Boom nothings here now ! 🤠"
     }, "DOC": {
         "description": "Used when adding or updating documentation.",
-        "message": "[📝] - {message}.",
+        "message": "[📝] - {message}",
         "ask_message": "Explain which docs did you add: ",
         "success": "Nice i like when somebody add documentation ! 🤓"
     }, "NEW": {
         "description": "Used when adding a new feature.",
-        "message": "[✨] - {message}.",
+        "message": "[✨] - {message}",
         "ask_message": "Explain what's new here: ",
         "success": "Wooow new feature already ? 🫨"
     }, "BUG": {
         "description": "Used when fixing a bug.",
-        "message": "[🐛] - {message}.",
+        "message": "[🐛] - {message}",
         "ask_message": "Which bug did you fix: ",
         "success": "Why did you put bug here in the first place ? 🤨"
     }, "ADD": {
         "description": "Used when adding a minor things (Not a new feature).",
-        "message": "[✅] - {message}.",
+        "message": "[✅] - {message}",
         "ask_message": "Which minor update did you made: ",
         "success": "Nice somethings minor too explore ! 🤩"
     }, "COMPILER": {
@@ -46,32 +46,32 @@ COMMIT_RULES = {
         "success": "Why did you push a code that have warning ? 😡"
     }, "REFACTOR": {
         "description": "Used when remaking a part of the code.",
-        "message": "[♻️] - {message}.",
+        "message": "[♻️] - {message}",
         "ask_message": "What did you remake: ",
         "success": "Try making better code in the first place next time ? 😃"
     }, "TYPO": {
         "description": "Used when fixing typo.",
-        "message": "[✏️] - {message}.",
+        "message": "[✏️] - {message}",
         "ask_message": "What typo did you remake: ",
         "success": "Actually, you misspell a word here ! 🤓"
     }, "BAD_CODE": {
         "description": "Used when writing bad code.",
-        "message": "[💩] - {message}.",
+        "message": "[💩] - {message}",
         "ask_message": "Explain fast: ",
         "success": "Why are you doing that ? 🤓"
     }, "REVERT": {
         "description": "Used when reverting change.",
-        "message": "[⏪️] - {message}.",
+        "message": "[⏪️] - {message}",
         "ask_message": "Why and what did you revert: ",
         "success": "BTTF ? 🤓"
     }, "DRUNK": {
         "description": "Used when writing code when drunk.",
-        "message": "[🍻] - {message}.",
+        "message": "[🍻] - {message}",
         "ask_message": "Go sleep: ",
         "success": "This code will be remove soon."
     }, "CLEAN": {
         "description": "Used when cleaning.",
-        "message": "[🗑️] - {message}.",
+        "message": "[🗑️] - {message}",
         "ask_message": "What did you clean: ",
         "success": "Yahouh something isn't needed anymore."
     }

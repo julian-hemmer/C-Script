@@ -1,0 +1,111 @@
+#!/usr/bin/python3
+
+import argparse
+import sys
+
+#####
+# MODIFIER
+#####
+
+RESET = 0
+BOLD = 1
+FAINT = 2
+ITALIC = 3
+UNDERLINE = 4
+BLINK = 5
+REVERSE = 7
+STRIKE_THROUGH = 9
+
+def c(text, fg=15, modifier=None, bg=None):
+    seq = []
+    if isinstance(modifier, list):
+        seq.extend(str(m) for m in modifier)
+    elif modifier is not None:
+        seq.append(str(modifier))
+    seq.append(f"38;5;{fg}")
+
+    if bg is not None:
+        seq.append(f"48;5;{bg}")
+
+    return f"\033[{';'.join(seq)}m{text}\033[0m"
+
+
+def parse_args(raw_argument):
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--bold", "-b",
+                        help = "Use to show color but in bold", action = "store_true")
+    parser.add_argument("--italic", "-i",
+                        help = "Use to show color but in italic", action = "store_true")
+    parser.add_argument("--blink", "-c",
+                        help = "Use to show color but in bold", action = "store_true")
+    parser.add_argument("--reverse", "-r",
+                        help = "Use to show color but in reverse", action = "store_true")
+    parser.add_argument("--underline", "-u",
+                        help = "Use to show color but in underline", action = "store_true")
+    parser.add_argument("--strikethrough", "-s",
+                        help = "Use to show color but in strikethrough", action = "store_true")
+    parser.add_argument("--faint", "-f",
+                        help = "Use to show color but in strikethrough", action = "store_true")
+    
+    parser.add_argument("--silent",
+                        help = "Use to doesn't show useless message.", action = "store_true")
+    
+    parser.add_argument("--default_color",
+                        help = "Use to show default_color.", action = "store_true")
+    parser.add_argument("--six_color",
+                        help = "Use to show 6x6x6 color.", action = "store_true")
+    parser.add_argument("--gray_scale",
+                        help = "Use to show gray scale.", action = "store_true")
+    return parser.parse_args(raw_argument)
+
+def dump_default_color(args, modifier):
+    if not args.silent:
+        print("\n# Default color: ")
+    for i in range(1, 17):
+        print(f"{c(f" {i - 1:3d} ", i - 1, modifier)}", end = "")
+        if i % 4 == 0:
+            print("   ", end = "")
+        if i % 8 == 0:
+            print()
+
+def dump_666_color(args, modifier):
+    if not args.silent:
+        print("\n# 6x6x6 color: ")
+
+    for i in range(1, 37):
+        color = ((i - 1) + 16) + (int((i - 1) / 6) * 30)
+        print(f"{c(f" {color:3d} ", color, modifier)}", end = "")
+        if i % 6 == 0:
+            print()
+
+def dump_24_grayscale(args, modifier):
+    if not args.silent:
+        print("\n# Grayscale color: ")
+    for i in range(233, 257):
+        print(f"{c(f" {i - 1:3d} ", i - 1, modifier)}", end = "")
+        if i % 4 == 0:
+            print("   ", end = "")
+        if i % 8 == 0:
+            print()
+
+def main():
+    modifier = []
+    args = parse_args(sys.argv[1:])
+    modifier.append(BOLD) if args.bold else modifier
+    modifier.append(ITALIC) if args.italic else modifier
+    modifier.append(FAINT) if args.faint else modifier
+    modifier.append(BLINK) if args.blink else modifier
+    modifier.append(REVERSE) if args.reverse else modifier
+    modifier.append(UNDERLINE) if args.underline else modifier
+    modifier.append(STRIKE_THROUGH) if args.strikethrough else modifier
+
+    if args.default_color or not (args.gray_scale or args.six_color):
+        dump_default_color(args, modifier)
+    if args.six_color or not (args.gray_scale or args.default_color):
+        dump_666_color(args, modifier)
+    if args.gray_scale or not (args.default_color or args.six_color):
+        dump_24_grayscale(args, modifier)
+    return 0
+
+if __name__ == "__main__":
+    exit(main())
