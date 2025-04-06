@@ -5,6 +5,7 @@ import sys
 import subprocess
 from pathlib import Path
 import readline
+import re
 
 MESSAGE = {
     "ISNT_GITHUB_REPO": "Current directory isn't a github repository root.",
@@ -12,7 +13,24 @@ MESSAGE = {
     "CHANGE_DETECTED": "Some change on the local repository was found !",
     "ASK_COMMIT_MESSAGE": "Give a meaningful message for the commit: ",
     "INVALID_COMMIT_MESSAGE": "The message '{}' is invalid !",
-    "COMMIT_SUCCEED": "Commit succeed !"
+    "DEFAULT_COMMIT_SUCCEED": "Commit succeed !",
+    "ASK_COMMIT_RULES": "Give a commit rules: ",
+    "INVALID_COMMIT_RULE": "Invalid commit rule given ! ('{}')",
+    "DEFAULT_ASK_VAR": "Give a value for the var '{}': "
+}
+
+COMMIT_RULES = {
+    "FIX": {
+        "message": "[FIX] - {message}.",
+        "ask_message": "Please give message: ",
+        "success": "Success on committing with FIX rules."
+    }, "CHANGE": {
+        "message": "[CHANGE] - {message}.",
+        "ask_message": "Please give message: "
+    }, "ADD": {
+        "message": "[ADD] - {message}.",
+        "ask_message": "Please give message: "
+    }
 }
 
 def print_message(key, *args, file = sys.stdout):
@@ -45,7 +63,7 @@ def parse_args(raw_argument):
                         help = "Use to activate debug mode (It's doesnt execute any command).", 
                         action = "store_true")
     parser.add_argument("--message", "-m",
-                        help = "Use force a message (No input is required).", 
+                        help = "The commit message.", 
                         default = None)
     parser.add_argument("--allow_empty_message", "--allow_empty",
                         help = "Allow empty message.",
@@ -64,24 +82,74 @@ def any_file_to_push():
         return True
     return False
 
-def ask_for_commit_message(args):
-    if args.message != None:
-        return
-    args.message = input(MESSAGE["ASK_COMMIT_MESSAGE"])
-    if args.message.strip() == "":
-        print_message("INVALID_COMMIT_MESSAGE", args.message, file=sys.stderr)
-        return False
-    return True
+####
+# COMMIT RULE ASKER
+####
+
+CHOICES = []
+
+def completer(text, state):
+    options = [cmd for cmd in CHOICES if cmd.startswith(text)]
+    if state < len(options):
+        return options[state]
+    else:
+        return None
+
+def ask_for_commit_rule():
+    global CHOICES
+    readline.set_completer(completer)
+    readline.parse_and_bind("tab: complete")
+    CHOICES = COMMIT_RULES.keys()
+    rule = input(MESSAGE["ASK_COMMIT_RULES"]).strip()
+    match = next((k for k in COMMIT_RULES if k.lower() == rule.lower()), rule)
+    readline.set_completer(None)
+    return match
+
+####
+# COMMIT VALUE FILLER
+####
+
+def ask_for_commit_variable(rules):
+    global CHOICES
+    fields = re.findall(r"{(.*?)}", rules["message"])
+    values = {}
+    for field in fields:
+        message = None
+        if f"ask_{field}" in rules:
+            message = rules[f"ask_{field}"]
+        else:
+            message = MESSAGE["DEFAULT_ASK_VAR"].format(field)
+        readline.set_completer(completer)
+        readline.parse_and_bind("tab: complete")
+        CHOICES = None
+        if f"choices_{field}" in rules:
+            CHOICES = rules[f"choices_{field}"]
+        user_input = input(message)
+        readline.set_completer(None)
+        values[field] = user_input
+    return values
+
+#####
+# ADD COMMIT FILE
+#####
 
 def add_file(args):
     debug_print(f"Target directory: '{args.dir}'", args.debug)
     if not args.debug:
         execute_command(["git", "add", args.dir]) 
 
+#####
+# FILE COMMIT
+#####
+
 def commit_file(args):
     debug_print(f"Commit message: '{args.message}'", args.debug)
     if not args.debug:
         execute_command(["git", "commit", "-m", args.message]) 
+
+#####
+# UPDATE GIT UPSTREAM
+#####
 
 def update_upstream(args):
     current_branch = None
@@ -91,12 +159,14 @@ def update_upstream(args):
     if not args.debug:
         execute_command(["git", "branch", "--set-upstream", current_branch]) 
 
+#####
+# PUSH FILE
+#####
 
 def push_file(args):
     debug_print("Pushing file.", args.debug)
     if not args.debug:
         execute_command(["git", "push"]) 
-
 
 def main():
     args = parse_args(sys.argv[1:])
@@ -107,13 +177,30 @@ def main():
         print_message("NO_CHANGE_DETECTED")
         return 0
     print_message("CHANGE_DETECTED")
-    if not ask_for_commit_message(args):
-        return 84
+
+    if args.message == None:
+        # Commit rule
+        commit_rule = ask_for_commit_rule()
+        if not commit_rule in COMMIT_RULES:
+            print_message("INVALID_COMMIT_RULE", commit_rule)
+            return 84
+
+        # Ask Commit variable
+        var = ask_for_commit_variable(COMMIT_RULES[commit_rule])
+        if var == None:
+            return 84
+        args.message = COMMIT_RULES[commit_rule]["message"].format(**var)
+    
+    # Commit file
     add_file(args)
     commit_file(args)
     update_upstream(args)
     push_file(args)
-    print_message("COMMIT_SUCCEED")
+
+    if commit_rule != None and "success" in COMMIT_RULES[commit_rule]:
+        print(COMMIT_RULES[commit_rule]["success"])
+    else:
+        print_message("DEFAULT_COMMIT_SUCCEED")
     return 0
 
 if __name__ == '__main__':
