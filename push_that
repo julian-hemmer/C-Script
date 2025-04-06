@@ -6,39 +6,7 @@ import subprocess
 from pathlib import Path
 import readline
 import re
-
-MESSAGE = {
-    "ISNT_GITHUB_REPO": "Current directory isn't a github repository root.",
-    "NO_CHANGE_DETECTED": "No file to push !",
-    "CHANGE_DETECTED": "Some change on the local repository was found !",
-    "ASK_COMMIT_MESSAGE": "Give a meaningful message for the commit: ",
-    "INVALID_COMMIT_VARIABLE_VALUE": "The value '{}' is invalid !",
-    "DEFAULT_COMMIT_SUCCEED": "Commit succeed !",
-    "ASK_COMMIT_RULES": "Give a commit rules: ",
-    "INVALID_COMMIT_RULE": "Invalid commit rule given ! ('{}')",
-    "DEFAULT_ASK_VAR": "Give a value for the var '{}': "
-}
-
-COMMIT_RULES = {
-    "REMOVE": {
-        "description": "[REMOVE] -> Used to ",
-        "message": "[🔥] - {message}.",
-        "ask_message": "Explain what was removed: ",
-        "success": "Boom nothings here now !"
-    }, "DOC": {
-        "message": "[📝] - {message}.",
-        "ask_message": "Explain which docs did you add: ",
-        "success": "Nice i like when somebody add documentation !"
-    }, "NEW": {
-        "message": "[✨] - {message}.",
-        "ask_message": "Explain what's new here: ",
-        "success": "Wooow new feature already ?"
-    }, "BUG": {
-        "message": "[🐛] - {message}.",
-        "ask_message": "Which bug did you fix: ",
-        "success": "Why did you put bug here in the first place ?"
-    }
-}
+from push_utils.config import *
 
 def print_message(key, *args, file = sys.stdout):
     str = MESSAGE[key]
@@ -71,6 +39,9 @@ def parse_args(raw_argument):
                         default = None)
     parser.add_argument("--allow_empty_message", "--allow_empty",
                         help = "Allow empty message.",
+                        action = "store_true")
+    parser.add_argument("--description", "-d",
+                        help = "Used to show all commit rules and there description.",
                         action = "store_true")
     return parser.parse_args(raw_argument)
 
@@ -108,7 +79,7 @@ def ask_for_commit_rule():
     match = next((k for k in COMMIT_RULES if k.lower() == rule.lower()), rule)
     readline.set_completer(None)
     if match in COMMIT_RULES and "description" in COMMIT_RULES[match]:
-        print(COMMIT_RULES[match]["description"])
+        print_message("RULES_DESCRIPTION", match, COMMIT_RULES[match]["description"])
     return match
 
 ####
@@ -177,8 +148,19 @@ def push_file(args):
     if not args.debug:
         execute_command(["git", "push"]) 
 
+def dump_rules_description():
+    for rule in COMMIT_RULES:
+        if "description" in COMMIT_RULES[rule]:
+            print_message("DUMP_COMMIT_RULE_DESC", rule, COMMIT_RULES[rule]["description"])
+        else:
+            print_message("DUMP_COMMIT_RULE_NO_DESC", rule)
+
+
 def main():
     args = parse_args(sys.argv[1:])
+    if args.description:
+        dump_rules_description()
+        return 0
     if not Path(".git/").exists():
         print_message("ISNT_GITHUB_REPO", file = sys.stderr)
         return 84
