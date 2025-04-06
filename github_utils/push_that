@@ -10,7 +10,8 @@ MESSAGE = {
     "NO_CHANGE_DETECTED": "No file to push !",
     "CHANGE_DETECTED": "Some change on the local repository was found !",
     "ASK_COMMIT_MESSAGE": "Give a meaningful message for the commit: ",
-    "INVALID_COMMIT_MESSAGE": "The message '{}' is invalid !"
+    "INVALID_COMMIT_MESSAGE": "The message '{}' is invalid !",
+    "COMMIT_SUCCEED": "Commit succeed !"
 }
 
 def print_message(key, *args, file = sys.stdout):
@@ -111,6 +112,7 @@ def main():
     commit_file(args)
     update_upstream(args)
     push_file(args)
+    print_message("COMMIT_SUCCEED")
     return 0
 
 if __name__ == '__main__':
