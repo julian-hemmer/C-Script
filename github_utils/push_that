@@ -50,8 +50,11 @@ def parse_args(raw_argument):
                         action = "store_true")
     return parser.parse_args(raw_argument)
 
+def execute_command(command):
+    return subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
 def any_file_to_push():
-    command_result = subprocess.run(["git", "diff", "--exit-code"], stdout=subprocess.DEVNULL)
+    command_result = execute_command(["git", "diff", "--exit-code"])
     if command_result.returncode != 0:
         return True
     command_result = subprocess.check_output(["git", "ls-files", "--other", "--exclude-standard", "--directory"])
@@ -71,12 +74,12 @@ def ask_for_commit_message(args):
 def add_file(args):
     debug_print(f"Target directory: '{args.dir}'", args.debug)
     if not args.debug:
-        subprocess.run(["git", "add", args.dir], stdout=subprocess.DEVNULL) 
+        execute_command(["git", "add", args.dir]) 
 
 def commit_file(args):
     debug_print(f"Commit message: '{args.message}'", args.debug)
     if not args.debug:
-        subprocess.run(["git", "commit", "-m", args.message], stdout=subprocess.DEVNULL) 
+        execute_command(["git", "commit", "-m", args.message]) 
 
 def update_upstream(args):
     current_branch = None
@@ -84,13 +87,13 @@ def update_upstream(args):
         current_branch = file.readline().split("/")[-1].strip()
     debug_print(f"Updating upstream to: '{current_branch}'", args.debug)
     if not args.debug:
-        subprocess.run(["git", "branch", "--set-upstream", current_branch], stdout=subprocess.DEVNULL) 
+        execute_command(["git", "branch", "--set-upstream", current_branch]) 
 
 
 def push_file(args):
     debug_print("Pushing file.", args.debug)
     if not args.debug:
-        subprocess.run(["git", "push"], stdout=subprocess.DEVNULL) 
+        execute_command(["git", "push"]) 
 
 
 def main():
