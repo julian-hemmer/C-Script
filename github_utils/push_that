@@ -4,6 +4,7 @@ import argparse
 import sys
 import subprocess
 from pathlib import Path
+import readline
 
 MESSAGE = {
     "ISNT_GITHUB_REPO": "Current directory isn't a github repository root.",
