@@ -3,25 +3,32 @@
 import argparse
 import sys
 import subprocess
+from pathlib import Path
 
 MESSAGE = {
+    "ISNT_GITHUB_REPO": "Current directory isn't a github repository root.",
     "NO_CHANGE_DETECTED": "No file to push !",
-    "CHANGE_DETECTED": "Some change on the local repository was found !{} {} {}"
+    "CHANGE_DETECTED": "Some change on the local repository was found !",
+    "ASK_COMMIT_MESSAGE": "Give a meaningful message for the commit: ",
+    "INVALID_COMMIT_MESSAGE": "The message '{}' is invalid !"
 }
 
-def print_message(key, **kwargs):
+def print_message(key, *args, file = sys.stdout):
     str = MESSAGE[key]
     if str == None or str == "":
         return
-    print(str.format(**kwargs))
+    if str.count("{}") > len(args):
+        print("Missing some argument.", file = sys.stderr)
+        return
+    print(str.format(*args), file = file)
 
 def debug_print(str, debug_mode = None):
     if debug_mode == None:
-        print("Debug_mode wasn't give !", file=sys.stderr)
+        print("Debug_mode wasn't give !", file = sys.stderr)
         return
     if not debug_mode:
-        return    
-    print(f"{str}")
+        return
+    print(f"[DEBUG] {str}")
 
 def parse_args(raw_argument):
     parser = argparse.ArgumentParser(description = 
@@ -35,6 +42,12 @@ def parse_args(raw_argument):
     parser.add_argument("--debug",
                         help = "Use to activate debug mode (It's doesnt execute any command).", 
                         action = "store_true")
+    parser.add_argument("--message", "-m",
+                        help = "Use force a message (No input is required).", 
+                        default = None)
+    parser.add_argument("--allow_empty_message", "--allow_empty",
+                        help = "Allow empty message.",
+                        action = "store_true")
     return parser.parse_args(raw_argument)
 
 def any_file_to_push():
@@ -46,22 +59,54 @@ def any_file_to_push():
         return True
     return False
 
+def ask_for_commit_message(args):
+    if args.message != None:
+        return
+    args.message = input(MESSAGE["ASK_COMMIT_MESSAGE"])
+    if args.message.strip() == "":
+        print_message("INVALID_COMMIT_MESSAGE", args.message, file=sys.stderr)
+        return False
+    return True
+
 def add_file(args):
-    command = ["git", "add", args.dir]
-    debug_print(f"Given dir: {args.dir}", args.debug)
+    debug_print(f"Target directory: '{args.dir}'", args.debug)
     if not args.debug:
-        subprocess.run(args=command, stdout=subprocess.DEVNULL) 
+        subprocess.run(["git", "add", args.dir], stdout=subprocess.DEVNULL) 
+
+def commit_file(args):
+    debug_print(f"Commit message: '{args.message}'", args.debug)
+    if not args.debug:
+        subprocess.run(["git", "commit", "-m", args.message], stdout=subprocess.DEVNULL) 
+
+def update_upstream(args):
+    current_branch = None
+    with open('.git/HEAD') as file:
+        current_branch = file.readline().split("/")[-1].strip()
+    debug_print(f"Updating upstream to: '{current_branch}'", args.debug)
+    if not args.debug:
+        subprocess.run(["git", "branch", "--set-upstream", current_branch], stdout=subprocess.DEVNULL) 
+
 
 def push_file(args):
-    pass
+    debug_print("Pushing file.", args.debug)
+    if not args.debug:
+        subprocess.run(["git", "push"], stdout=subprocess.DEVNULL) 
+
 
 def main():
     args = parse_args(sys.argv[1:])
+    if not Path(".git/").exists():
+        print_message("ISNT_GITHUB_REPO", file = sys.stderr)
+        return 84
     if not any_file_to_push():
-        print_message(MESSAGE["NO_CHANGE_DETECTED"])
+        print_message("NO_CHANGE_DETECTED")
         return 0
-    print_message("CHANGE_DETECTED", "a", "eeee", 12)
+    print_message("CHANGE_DETECTED")
+    if not ask_for_commit_message(args):
+        return 84
     add_file(args)
+    commit_file(args)
+    update_upstream(args)
     push_file(args)
     return 0
 
