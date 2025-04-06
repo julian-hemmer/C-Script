@@ -58,7 +58,7 @@ def any_file_to_push():
         return True
     return False
 
-####
+###
 # COMMIT RULE ASKER
 ####
 
